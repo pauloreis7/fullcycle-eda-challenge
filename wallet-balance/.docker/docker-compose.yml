@@ -1,0 +1,34 @@
+version: '3'
+
+services:
+  postgres-db:
+    image: postgres:15.2-alpine
+    container_name: postgres-db
+    restart: always
+    tty: true
+    ports:
+      - '5432:5432'
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: 12345
+      POSTGRES_DB: wallet-balance
+
+  api:
+    container_name: wallet-balance
+    build:
+      context: ../
+      dockerfile: ./.docker/Dockerfile
+    image: wallet-balance/api:dev
+    command: >
+      sh -c "npx prisma migrate deploy
+      && node ./prisma/seed.js
+      && dumb-init node ./src/main.js"
+    restart: always
+    tty: true
+    ports:
+      - '8003:3333'
+    depends_on:
+      - postgres-db
+    environment:
+      DATABASE_URL: 'postgresql://postgres:12345@postgres-db:5432/postgres'
+      PORT: 3333
