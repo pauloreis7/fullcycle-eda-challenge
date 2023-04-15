@@ -10,7 +10,11 @@ async function bootstrap() {
     transport: Transport.KAFKA,
     options: {
       client: {
-        brokers: ['localhost:9092'],
+        clientId: 'wallet-balance',
+        brokers: [process.env.KAFKA_HOST],
+      },
+      consumer: {
+        groupId: 'my-consumer-' + Math.random(),
       },
     },
   });

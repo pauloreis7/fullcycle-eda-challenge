@@ -1,24 +1,36 @@
-import { Controller, Get, Param, ValidationPipe } from '@nestjs/common';
-
-import { PrismaService } from './database/prisma.service';
+import {
+  Controller,
+  Get,
+  HttpException,
+  Param,
+  ValidationPipe,
+} from '@nestjs/common';
 import { MessagePattern, Payload } from '@nestjs/microservices';
 
+import { PrismaService } from './database/prisma.service';
+
 interface UpdateBalancesDto {
-  account_id_from: string;
-  account_id_to: string;
-  balance_account_id_from: number;
-  balance_account_id_to: number;
+  Payload: {
+    account_id_from: string;
+    account_id_to: string;
+    balance_account_id_from: number;
+    balance_account_id_to: number;
+  };
 }
 
 @Controller('/balances')
 export class AppController {
   constructor(private prisma: PrismaService) {}
 
-  @Get(':accoundId')
-  async getAccountBalance(@Param(':accoundId') id: string) {
+  @Get(':accountId')
+  async getAccountBalance(@Param('accountId') accountId: string) {
     const account = await this.prisma.account.findUnique({
-      where: { id },
+      where: { id: accountId },
     });
+
+    if (!account) {
+      throw new HttpException('Account not found!', 404);
+    }
 
     return { data: account.balance };
   }
@@ -28,24 +40,24 @@ export class AppController {
     @Payload(new ValidationPipe())
     message: UpdateBalancesDto,
   ) {
-    console.log(message);
+    try {
+      const updateFromBalance = this.prisma.account.update({
+        where: {
+          id: message.Payload.account_id_from,
+        },
+        data: { balance: message.Payload.balance_account_id_from },
+      });
 
-    const updateFromBalance = this.prisma.account.update({
-      where: {
-        id: message.account_id_from,
-      },
-      data: { balance: message.balance_account_id_from },
-    });
+      const updateToBalance = this.prisma.account.update({
+        where: {
+          id: message.Payload.account_id_to,
+        },
+        data: { balance: message.Payload.balance_account_id_to },
+      });
 
-    const updateToBalance = this.prisma.account.update({
-      where: {
-        id: message.account_id_to,
-      },
-      data: { balance: message.balance_account_id_to },
-    });
-
-    await this.prisma.$transaction([updateFromBalance, updateToBalance]);
-
-    return;
+      await this.prisma.$transaction([updateFromBalance, updateToBalance]);
+    } catch (error) {
+      throw new HttpException(error.message, 400);
+    }
   }
 }

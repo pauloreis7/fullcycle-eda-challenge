@@ -8,7 +8,7 @@ async function main() {
     update: {},
     create: {
       id: 'f8df753c-3b58-43aa-8016-12aaa4f1ea3e',
-      balance: 0,
+      balance: 100,
       name: 'John Doe',
     },
   });
@@ -18,7 +18,7 @@ async function main() {
     update: {},
     create: {
       id: '0216ea38-524f-4e85-8743-d484a8f7538e',
-      balance: 0,
+      balance: 100,
       name: 'Jane Doe',
     },
   });
