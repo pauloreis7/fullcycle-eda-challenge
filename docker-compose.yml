@@ -2,11 +2,13 @@ version: "3"
 
 services:
   goapp:
-    build: .
+    build:
+      context: ./wallet-core
+      dockerfile: ./Dockerfile
     platform: linux/amd64
     command: go run "cmd/walletcore/main.go"
     volumes:
-      - .:/app
+      - ./wallet-core/:/app
     ports:
       - 8080:8080
 
@@ -20,8 +22,8 @@ services:
       MYSQL_DATABASE: wallet
       MYSQL_PASSWORD: root
     volumes:
-      - .docker/mysql:/var/lib/mysql
-      - ./init:/docker-entrypoint-initdb.d
+      - ./wallet-core/.docker/mysql:/var/lib/mysql
+      - ./wallet-core/init:/docker-entrypoint-initdb.d
     ports:
       - "3306:3306"
 
@@ -88,5 +90,42 @@ services:
       CONTROL_CENTER_MONITORING_INTERCEPTOR_TOPIC_PARTITIONS: 1
       CONFLUENT_METRICS_TOPIC_REPLICATION: 1
       PORT: 9021
+    extra_hosts:
+      - "host.docker.internal:172.17.0.1"
+
+  postgres-db:
+    image: postgres:15.2-alpine
+    container_name: postgres-db
+    restart: always
+    tty: true
+    ports:
+        - "5432:5432"
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: 12345
+      POSTGRES_DB: wallet-balance
+
+  api:
+    container_name: wallet-balance
+    build:
+      context: ./wallet-balance
+      dockerfile: ./.docker/Dockerfile
+    image: wallet-balance/api:dev
+    command: >
+      sh -c "npx prisma migrate deploy
+      && node ./prisma/seed.js
+      && dumb-init node ./src/main.js"
+    restart: always
+    tty: true
+    ports:
+        - "3003:3333"
+    depends_on:
+        - postgres-db
+        - kafka
+        - zookeeper
+    environment:
+      DATABASE_URL: "postgresql://postgres:12345@postgres-db:5432/postgres"
+      KAFKA_HOST: host.docker.internal:9092
+      PORT: 3333
     extra_hosts:
       - "host.docker.internal:172.17.0.1"
